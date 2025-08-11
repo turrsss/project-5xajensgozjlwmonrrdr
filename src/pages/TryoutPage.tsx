@@ -147,11 +147,16 @@ const TryoutPage = () => {
   const calculateTagStats = async (userAnswers) => {
     const tagStats = {};
     
-    // Group questions by tag
+    // Group questions by main and sub category
     questions.forEach(question => {
-      const tag = question.question_tag || 'Umum';
-      if (!tagStats[tag]) {
-        tagStats[tag] = {
+      const mainCat = question.main_category || 'Non Tag';
+      const subCat = question.sub_category || 'Umum';
+      const key = `${mainCat}|${subCat}`;
+      
+      if (!tagStats[key]) {
+        tagStats[key] = {
+          main_category: mainCat,
+          sub_category: subCat,
           total_questions: 0,
           correct_answers: 0,
           wrong_answers: 0,
@@ -159,37 +164,40 @@ const TryoutPage = () => {
           total_time_seconds: 0
         };
       }
-      tagStats[tag].total_questions++;
+      tagStats[key].total_questions++;
     });
 
-    // Calculate stats for each tag
+    // Calculate stats for each category combination
     userAnswers.forEach(answer => {
       const question = questions.find(q => q.id === answer.question_id);
       if (question) {
-        const tag = question.question_tag || 'Umum';
+        const mainCat = question.main_category || 'Non Tag';
+        const subCat = question.sub_category || 'Umum';
+        const key = `${mainCat}|${subCat}`;
         
         if (answer.is_correct) {
-          tagStats[tag].correct_answers++;
+          tagStats[key].correct_answers++;
         } else if (answer.user_answer) {
-          tagStats[tag].wrong_answers++;
+          tagStats[key].wrong_answers++;
         } else {
-          tagStats[tag].unanswered++;
+          tagStats[key].unanswered++;
         }
         
-        tagStats[tag].total_time_seconds += answer.time_spent_seconds || 0;
+        tagStats[key].total_time_seconds += answer.time_spent_seconds || 0;
       }
     });
 
     // Save tag stats to database
     const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
     
-    for (const [tag, stats] of Object.entries(tagStats)) {
+    for (const [key, stats] of Object.entries(tagStats)) {
       try {
         await QuestionTagStats.create({
           session_id: session.id,
           user_id: currentUser.id,
           package_id: packageId,
-          question_tag: tag,
+          main_category: stats.main_category,
+          sub_category: stats.sub_category,
           total_questions: stats.total_questions,
           correct_answers: stats.correct_answers,
           wrong_answers: stats.wrong_answers,
@@ -198,7 +206,7 @@ const TryoutPage = () => {
           average_time_seconds: stats.total_questions > 0 ? Math.round(stats.total_time_seconds / stats.total_questions) : 0
         });
       } catch (error) {
-        console.error(`Error saving tag stats for ${tag}:`, error);
+        console.error(`Error saving tag stats for ${key}:`, error);
       }
     }
   };
@@ -307,9 +315,14 @@ const TryoutPage = () => {
               <Badge variant="secondary">
                 Soal {currentQuestionIndex + 1} dari {questions.length}
               </Badge>
-              {currentQuestion.question_tag && (
+              {currentQuestion.main_category && (
                 <Badge variant="outline">
-                  {currentQuestion.question_tag}
+                  {currentQuestion.main_category}
+                </Badge>
+              )}
+              {currentQuestion.sub_category && (
+                <Badge variant="outline" className="bg-blue-50">
+                  {currentQuestion.sub_category}
                 </Badge>
               )}
             </div>
@@ -359,7 +372,7 @@ const TryoutPage = () => {
                       }
                       className="w-8 h-8 p-0"
                       onClick={() => setCurrentQuestionIndex(index)}
-                      title={question.question_tag || 'Umum'}
+                      title={`${question.main_category || 'Non Tag'} - ${question.sub_category || 'Umum'}`}
                     >
                       {index + 1}
                     </Button>
@@ -375,11 +388,18 @@ const TryoutPage = () => {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center justify-between">
                   <span>Soal {currentQuestionIndex + 1}</span>
-                  {currentQuestion.question_tag && (
-                    <Badge variant="secondary">
-                      {currentQuestion.question_tag}
-                    </Badge>
-                  )}
+                  <div className="flex space-x-2">
+                    {currentQuestion.main_category && (
+                      <Badge variant="secondary">
+                        {currentQuestion.main_category}
+                      </Badge>
+                    )}
+                    {currentQuestion.sub_category && (
+                      <Badge variant="outline" className="bg-blue-50">
+                        {currentQuestion.sub_category}
+                      </Badge>
+                    )}
+                  </div>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">

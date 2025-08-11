@@ -3,158 +3,99 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Clock, CheckCircle, XCircle } from "lucide-react";
-import { QuestionPackage, Payment, PaymentSetting } from "@/entities";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, CreditCard, CheckCircle } from "lucide-react";
+import { QuestionPackage, Payment } from "@/entities";
 import { toast } from "@/hooks/use-toast";
 
 const PaymentPage = () => {
   const { packageId } = useParams();
   const navigate = useNavigate();
   const [packageData, setPackageData] = useState(null);
-  const [payment, setPayment] = useState(null);
-  const [paymentSettings, setPaymentSettings] = useState(null);
-  const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState('qris');
+  const [formData, setFormData] = useState({
+    phone: '',
+    email: ''
+  });
 
   useEffect(() => {
-    loadData();
+    loadPackageData();
   }, [packageId]);
 
-  useEffect(() => {
-    let interval;
-    if (timeLeft > 0 && payment?.status === 'pending') {
-      interval = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev <= 1) {
-            checkPaymentStatus();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [timeLeft, payment]);
-
-  const loadData = async () => {
+  const loadPackageData = async () => {
     try {
-      const [pkg, settings] = await Promise.all([
-        QuestionPackage.get(packageId),
-        PaymentSetting.list('-created_at', 1)
-      ]);
-      
+      const pkg = await QuestionPackage.get(packageId);
       setPackageData(pkg);
-      setPaymentSettings(settings[0] || null);
       
-      // Check for existing pending payment
-      const existingPayments = await Payment.filter({ 
-        package_id: packageId, 
-        status: 'pending' 
-      }, '-created_at', 1);
-      
-      if (existingPayments.length > 0) {
-        const existingPayment = existingPayments[0];
-        setPayment(existingPayment);
-        
-        // Calculate time left
-        const expiresAt = new Date(existingPayment.expires_at);
-        const now = new Date();
-        const secondsLeft = Math.max(0, Math.floor((expiresAt - now) / 1000));
-        setTimeLeft(secondsLeft);
-      }
+      // Pre-fill user data
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      setFormData({
+        phone: currentUser.phone || '',
+        email: currentUser.email || ''
+      });
     } catch (error) {
-      console.error("Error loading data:", error);
+      console.error("Error loading package:", error);
       toast({
         title: "Error",
-        description: "Gagal memuat data pembayaran",
+        description: "Paket tidak ditemukan",
         variant: "destructive",
       });
+      navigate('/dashboard');
     } finally {
       setLoading(false);
     }
   };
 
-  const createPayment = async () => {
+  const handlePayment = async () => {
+    if (!formData.phone || !formData.email) {
+      toast({
+        title: "Data tidak lengkap",
+        description: "Mohon lengkapi nomor telepon dan email",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setProcessing(true);
+
     try {
-      const expiresAt = new Date();
-      expiresAt.setMinutes(expiresAt.getMinutes() + (paymentSettings?.payment_timeout_minutes || 30));
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
       
-      // Generate simple QRIS code (in real implementation, this would be from payment gateway)
-      const qrisCode = `${paymentSettings?.qris_merchant_id || 'MERCHANT'}-${Date.now()}`;
+      // Simulate payment processing
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      const newPayment = await Payment.create({
+      // Create payment record
+      await Payment.create({
+        user_id: currentUser.id,
         package_id: packageId,
         amount: packageData.price,
-        payment_method: 'QRIS',
-        status: 'pending',
-        qris_code: qrisCode,
-        expires_at: expiresAt.toISOString(),
+        payment_method: paymentMethod,
+        status: 'completed',
+        phone: formData.phone,
+        email: formData.email,
+        transaction_id: `TXN-${Date.now()}`
       });
-      
-      setPayment(newPayment);
-      setTimeLeft((paymentSettings?.payment_timeout_minutes || 30) * 60);
-      
+
       toast({
-        title: "Pembayaran dibuat",
-        description: "Silakan scan QRIS code untuk melakukan pembayaran",
+        title: "Pembayaran berhasil!",
+        description: "Anda sekarang dapat mengakses paket soal ini",
       });
+
+      // Redirect to tryout
+      navigate(`/tryout/${packageId}`);
     } catch (error) {
+      console.error("Payment error:", error);
       toast({
-        title: "Error",
-        description: "Gagal membuat pembayaran",
+        title: "Pembayaran gagal",
+        description: "Terjadi kesalahan saat memproses pembayaran",
         variant: "destructive",
       });
+    } finally {
+      setProcessing(false);
     }
-  };
-
-  const checkPaymentStatus = async () => {
-    if (!payment) return;
-    
-    try {
-      const updatedPayment = await Payment.get(payment.id);
-      setPayment(updatedPayment);
-      
-      if (updatedPayment.status === 'completed') {
-        toast({
-          title: "Pembayaran berhasil",
-          description: "Anda dapat mulai mengerjakan tryout sekarang",
-        });
-        setTimeout(() => {
-          navigate(`/tryout/${packageId}`);
-        }, 2000);
-      } else if (updatedPayment.status === 'expired' || updatedPayment.status === 'failed') {
-        toast({
-          title: "Pembayaran gagal",
-          description: "Silakan buat pembayaran baru",
-          variant: "destructive",
-        });
-        setPayment(null);
-        setTimeLeft(0);
-      }
-    } catch (error) {
-      console.error("Error checking payment status:", error);
-    }
-  };
-
-  const simulatePaymentSuccess = async () => {
-    if (!payment) return;
-    
-    try {
-      await Payment.update(payment.id, { status: 'completed' });
-      checkPaymentStatus();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Gagal memperbarui status pembayaran",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const formatTime = (seconds) => {
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
@@ -170,7 +111,7 @@ const PaymentPage = () => {
       <div className="min-h-screen flex items-center justify-center">
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-gray-600">Paket soal tidak ditemukan</p>
+            <p className="text-gray-600">Paket tidak ditemukan</p>
             <Button className="mt-4" onClick={() => navigate('/dashboard')}>
               Kembali ke Dashboard
             </Button>
@@ -181,38 +122,51 @@ const PaymentPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <Button variant="outline" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Kembali
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+      {/* Header */}
+      <header className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center py-4">
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Kembali
+            </Button>
+            <div className="ml-4">
+              <h1 className="text-2xl font-bold text-gray-900">Pembayaran Paket</h1>
+              <p className="text-gray-600">Selesaikan pembayaran untuk mengakses tryout</p>
+            </div>
+          </div>
         </div>
+      </header>
 
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Pembayaran Paket Soal</CardTitle>
-            <CardDescription>Lakukan pembayaran untuk mengakses paket soal</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Package Info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detail Paket</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div>
                 <h3 className="font-semibold text-lg">{packageData.title}</h3>
                 <p className="text-gray-600">{packageData.description}</p>
               </div>
               
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-gray-600">Durasi:</span>
-                  <span className="ml-2 font-medium">{packageData.duration_minutes} menit</span>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Durasi:</span>
+                  <span className="font-medium">{packageData.duration_minutes} menit</span>
                 </div>
-                <div>
-                  <span className="text-gray-600">Jumlah Soal:</span>
-                  <span className="ml-2 font-medium">{packageData.total_questions}</span>
+                <div className="flex justify-between">
+                  <span>Jumlah Soal:</span>
+                  <span className="font-medium">{packageData.total_questions}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Akses:</span>
+                  <Badge variant="default">Selamanya</Badge>
                 </div>
               </div>
-              
+
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
                   <span className="text-lg font-semibold">Total Pembayaran:</span>
@@ -221,102 +175,114 @@ const PaymentPage = () => {
                   </span>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {!payment ? (
-          <Card>
-            <CardContent className="p-6 text-center">
-              <p className="text-gray-600 mb-4">
-                Klik tombol di bawah untuk membuat pembayaran QRIS
-              </p>
-              <Button onClick={createPayment} size="lg">
-                Buat Pembayaran QRIS
-              </Button>
             </CardContent>
           </Card>
-        ) : (
+
+          {/* Payment Form */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Status Pembayaran</span>
-                <Badge variant={
-                  payment.status === 'completed' ? 'default' :
-                  payment.status === 'pending' ? 'secondary' : 'destructive'
-                }>
-                  {payment.status === 'completed' ? 'Berhasil' :
-                   payment.status === 'pending' ? 'Menunggu' : 'Gagal'}
-                </Badge>
+              <CardTitle className="flex items-center">
+                <CreditCard className="w-5 h-5 mr-2" />
+                Metode Pembayaran
               </CardTitle>
+              <CardDescription>Pilih metode pembayaran dan lengkapi data</CardDescription>
             </CardHeader>
-            <CardContent>
-              {payment.status === 'pending' && (
-                <div className="space-y-6">
-                  <div className="text-center">
-                    <div className="bg-white p-8 rounded-lg border-2 border-dashed border-gray-300 mb-4">
-                      <div className="text-6xl font-mono font-bold text-gray-800 mb-2">
-                        QRIS
+            <CardContent className="space-y-6">
+              {/* Payment Method Selection */}
+              <div className="space-y-3">
+                <Label>Metode Pembayaran</Label>
+                <div className="grid grid-cols-1 gap-3">
+                  <div 
+                    className={`p-4 border rounded-lg cursor-pointer transition-colors ${
+                      paymentMethod === 'qris' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'
+                    }`}
+                    onClick={() => setPaymentMethod('qris')}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-4 h-4 rounded-full border-2 ${
+                        paymentMethod === 'qris' ? 'border-blue-500 bg-blue-500' : 'border-gray-300'
+                      }`}>
+                        {paymentMethod === 'qris' && <div className="w-2 h-2 bg-white rounded-full mx-auto mt-0.5"></div>}
                       </div>
-                      <p className="text-sm text-gray-600">
-                        Scan dengan aplikasi pembayaran Anda
-                      </p>
-                      <p className="text-xs text-gray-500 mt-2">
-                        Code: {payment.qris_code}
-                      </p>
-                    </div>
-                    
-                    <div className="flex items-center justify-center text-orange-600 mb-4">
-                      <Clock className="w-5 h-5 mr-2" />
-                      <span className="font-medium">
-                        Waktu tersisa: {formatTime(timeLeft)}
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Button onClick={checkPaymentStatus} variant="outline" className="w-full">
-                        Cek Status Pembayaran
-                      </Button>
-                      
-                      {/* Demo button - remove in production */}
-                      <Button 
-                        onClick={simulatePaymentSuccess} 
-                        variant="secondary" 
-                        className="w-full"
-                        size="sm"
-                      >
-                        [Demo] Simulasi Pembayaran Berhasil
-                      </Button>
+                      <div>
+                        <p className="font-medium">QRIS</p>
+                        <p className="text-sm text-gray-600">Bayar dengan scan QR Code</p>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
-              
-              {payment.status === 'completed' && (
-                <div className="text-center space-y-4">
-                  <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+              </div>
+
+              {/* Contact Information */}
+              <div className="space-y-4">
+                <Label>Informasi Kontak</Label>
+                <div className="space-y-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-green-700">Pembayaran Berhasil!</h3>
-                    <p className="text-gray-600">Anda akan diarahkan ke halaman tryout...</p>
+                    <Label htmlFor="phone">Nomor Telepon</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="08xxxxxxxxxx"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      required
+                    />
                   </div>
-                </div>
-              )}
-              
-              {(payment.status === 'expired' || payment.status === 'failed') && (
-                <div className="text-center space-y-4">
-                  <XCircle className="w-16 h-16 text-red-500 mx-auto" />
                   <div>
-                    <h3 className="text-lg font-semibold text-red-700">Pembayaran Gagal</h3>
-                    <p className="text-gray-600">Silakan buat pembayaran baru</p>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="email@example.com"
+                      value={formData.email}
+                      onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                      required
+                    />
                   </div>
-                  <Button onClick={() => setPayment(null)}>
-                    Buat Pembayaran Baru
-                  </Button>
+                </div>
+              </div>
+
+              {/* QRIS Simulation */}
+              {paymentMethod === 'qris' && (
+                <div className="text-center p-6 bg-gray-50 rounded-lg">
+                  <div className="w-32 h-32 bg-white border-2 border-dashed border-gray-300 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                    <p className="text-gray-500 text-sm">QR Code</p>
+                  </div>
+                  <p className="text-sm text-gray-600">
+                    Scan QR Code dengan aplikasi pembayaran Anda
+                  </p>
+                  <p className="text-xs text-gray-500 mt-2">
+                    *Ini adalah simulasi demo - pembayaran akan otomatis berhasil
+                  </p>
                 </div>
               )}
+
+              {/* Payment Button */}
+              <Button 
+                className="w-full" 
+                onClick={handlePayment}
+                disabled={processing}
+                size="lg"
+              >
+                {processing ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Memproses Pembayaran...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Bayar Sekarang - Rp {packageData.price?.toLocaleString('id-ID')}
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-gray-500 text-center">
+                Dengan melanjutkan, Anda menyetujui syarat dan ketentuan yang berlaku
+              </p>
             </CardContent>
           </Card>
-        )}
+        </div>
       </div>
     </div>
   );

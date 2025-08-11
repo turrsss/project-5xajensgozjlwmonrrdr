@@ -19,11 +19,12 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
     correct_answer: "",
     explanation: "",
     question_number: questionNumber,
-    question_tag: "",
+    main_category: "",
+    sub_category: "",
   });
   const [loading, setLoading] = useState(false);
 
-  const questionTags = ["Figural", "Verbal", "Numerik", "Logika", "Penalaran", "Umum"];
+  const mainCategories = ["TWK", "TIU", "TKP", "Non Tag"];
 
   useEffect(() => {
     if (editQuestion) {
@@ -37,7 +38,8 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
         correct_answer: editQuestion.correct_answer || "",
         explanation: editQuestion.explanation || "",
         question_number: editQuestion.question_number || questionNumber,
-        question_tag: editQuestion.question_tag || "",
+        main_category: editQuestion.main_category || "",
+        sub_category: editQuestion.sub_category || "",
       });
     }
   }, [editQuestion, questionNumber]);
@@ -115,18 +117,31 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Tag Jenis Soal</Label>
-            <Select value={formData.question_tag} onValueChange={(value) => handleSelectChange('question_tag', value)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih jenis soal" />
-              </SelectTrigger>
-              <SelectContent>
-                {questionTags.map((tag) => (
-                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Kategori Utama</Label>
+              <Select value={formData.main_category} onValueChange={(value) => handleSelectChange('main_category', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Pilih kategori utama" />
+                </SelectTrigger>
+                <SelectContent>
+                  {mainCategories.map((category) => (
+                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sub_category">Sub Kategori/Materi</Label>
+              <Input
+                id="sub_category"
+                name="sub_category"
+                value={formData.sub_category}
+                onChange={handleChange}
+                placeholder="Contoh: Figural, Hitung Cepat, Pancasila, dll"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 gap-4">

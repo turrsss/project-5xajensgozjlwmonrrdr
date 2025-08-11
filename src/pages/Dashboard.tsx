@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, BookOpen, Trophy, Settings, LogOut, History } from "lucide-react";
-import { QuestionPackage, TryoutSession } from "@/entities";
+import { QuestionPackage, TryoutSession, Payment } from "@/entities";
 import { toast } from "@/hooks/use-toast";
+import PackageRanking from "@/components/PackageRanking";
 
 const Dashboard = () => {
   const [packages, setPackages] = useState([]);
   const [user, setUser] = useState(null);
   const [recentSessions, setRecentSessions] = useState([]);
+  const [userPayments, setUserPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -24,14 +26,21 @@ const Dashboard = () => {
       const storedUser = localStorage.getItem('currentUser');
       const currentUser = storedUser ? JSON.parse(storedUser) : null;
       
-      const [packageList, sessions] = await Promise.all([
+      if (!currentUser) {
+        navigate('/login');
+        return;
+      }
+
+      const [packageList, sessions, payments] = await Promise.all([
         QuestionPackage.filter({ is_active: true }, '-created_at', 10),
-        TryoutSession.filter({}, '-created_at', 5)
+        TryoutSession.filter({ user_id: currentUser.id }, '-created_at', 5),
+        Payment.filter({ user_id: currentUser.id, status: 'completed' })
       ]);
       
       setUser(currentUser);
       setPackages(packageList);
       setRecentSessions(sessions);
+      setUserPayments(payments);
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -56,11 +65,16 @@ const Dashboard = () => {
     }
   };
 
-  const handleStartTryout = (packageId, requiresPayment) => {
-    if (requiresPayment) {
-      navigate(`/payment/${packageId}`);
+  const hasAccessToPackage = (packageData) => {
+    if (!packageData.requires_payment) return true;
+    return userPayments.some(payment => payment.package_id === packageData.id);
+  };
+
+  const handleStartTryout = (packageData) => {
+    if (packageData.requires_payment && !hasAccessToPackage(packageData)) {
+      navigate(`/payment/${packageData.id}`);
     } else {
-      navigate(`/tryout/${packageId}`);
+      navigate(`/tryout/${packageData.id}`);
     }
   };
 
@@ -133,16 +147,12 @@ const Dashboard = () => {
           
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Status Akses</CardTitle>
+              <CardTitle className="text-sm font-medium">Paket Terbeli</CardTitle>
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                <Badge variant={user?.subscription_status === 'active' ? 'default' : 'secondary'}>
-                  {user?.subscription_status === 'active' ? 'Aktif' : 'Tidak Aktif'}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground">Status berlangganan</p>
+              <div className="text-2xl font-bold">{userPayments.length}</div>
+              <p className="text-xs text-muted-foreground">Paket yang sudah dibayar</p>
             </CardContent>
           </Card>
         </div>
@@ -152,38 +162,58 @@ const Dashboard = () => {
           <h2 className="text-xl font-semibold mb-4">Paket Soal Tersedia</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {packages.map((pkg) => (
-              <Card key={pkg.id} className="hover:shadow-lg transition-shadow">
-                <CardHeader>
-                  <CardTitle className="text-lg">{pkg.title}</CardTitle>
-                  <CardDescription>{pkg.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between text-sm">
-                      <span>Durasi:</span>
-                      <span className="font-medium">{pkg.duration_minutes} menit</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Jumlah Soal:</span>
-                      <span className="font-medium">{pkg.total_questions}</span>
-                    </div>
-                    {pkg.requires_payment && (
-                      <div className="flex justify-between text-sm">
-                        <span>Harga:</span>
-                        <span className="font-medium text-green-600">
-                          Rp {pkg.price?.toLocaleString('id-ID')}
-                        </span>
+              <div key={pkg.id} className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Package Card */}
+                <Card className="lg:col-span-2 hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <CardTitle className="text-lg">{pkg.title}</CardTitle>
+                        <CardDescription>{pkg.description}</CardDescription>
                       </div>
-                    )}
-                  </div>
-                  <Button 
-                    className="w-full" 
-                    onClick={() => handleStartTryout(pkg.id, pkg.requires_payment)}
-                  >
-                    {pkg.requires_payment ? 'Beli & Mulai' : 'Mulai Tryout'}
-                  </Button>
-                </CardContent>
-              </Card>
+                      {hasAccessToPackage(pkg) && (
+                        <Badge variant="default" className="text-xs">Terbeli</Badge>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex justify-between text-sm">
+                        <span>Durasi:</span>
+                        <span className="font-medium">{pkg.duration_minutes} menit</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Jumlah Soal:</span>
+                        <span className="font-medium">{pkg.total_questions}</span>
+                      </div>
+                      {pkg.requires_payment && (
+                        <div className="flex justify-between text-sm">
+                          <span>Harga:</span>
+                          <span className="font-medium text-green-600">
+                            Rp {pkg.price?.toLocaleString('id-ID')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={() => handleStartTryout(pkg)}
+                      disabled={pkg.requires_payment && !hasAccessToPackage(pkg) ? false : false}
+                    >
+                      {pkg.requires_payment && !hasAccessToPackage(pkg) ? 'Beli & Mulai' : 'Mulai Tryout'}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                {/* Ranking Card */}
+                <div className="lg:col-span-1">
+                  <PackageRanking 
+                    packageId={pkg.id} 
+                    packageTitle={pkg.title}
+                    limit={5}
+                  />
+                </div>
+              </div>
             ))}
           </div>
         </div>

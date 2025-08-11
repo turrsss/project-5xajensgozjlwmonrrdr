@@ -38,6 +38,19 @@ const TagStatsView = ({ sessionId }) => {
     return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
   };
 
+  const getCategoryColor = (mainCategory) => {
+    switch (mainCategory) {
+      case 'TWK':
+        return 'bg-blue-100 text-blue-800';
+      case 'TIU':
+        return 'bg-green-100 text-green-800';
+      case 'TKP':
+        return 'bg-purple-100 text-purple-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-4">
@@ -50,7 +63,7 @@ const TagStatsView = ({ sessionId }) => {
     return (
       <Card>
         <CardContent className="p-6 text-center">
-          <p className="text-gray-500">Tidak ada data statistik per tag</p>
+          <p className="text-gray-500">Tidak ada data statistik per kategori</p>
         </CardContent>
       </Card>
     );
@@ -60,7 +73,7 @@ const TagStatsView = ({ sessionId }) => {
     <div className="space-y-4">
       <h3 className="text-lg font-semibold flex items-center">
         <BarChart3 className="w-5 h-5 mr-2" />
-        Statistik per Jenis Soal
+        Statistik per Kategori Soal
       </h3>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -73,8 +86,19 @@ const TagStatsView = ({ sessionId }) => {
             <Card key={stat.id}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">{stat.question_tag}</CardTitle>
-                  <Badge variant="outline">{stat.total_questions} soal</Badge>
+                  <div className="flex flex-col space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <Badge className={getCategoryColor(stat.main_category)}>
+                        {stat.main_category}
+                      </Badge>
+                      <Badge variant="outline">{stat.total_questions} soal</Badge>
+                    </div>
+                    {stat.sub_category && (
+                      <CardTitle className="text-sm text-gray-600">
+                        {stat.sub_category}
+                      </CardTitle>
+                    )}
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

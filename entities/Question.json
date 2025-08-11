@@ -43,10 +43,14 @@
       "type": "number",
       "description": "Question order number in package"
     },
-    "question_tag": {
+    "main_category": {
       "type": "string",
-      "description": "Tag for question type (e.g., Figural, Verbal, Numerik, etc.)",
-      "enum": ["Figural", "Verbal", "Numerik", "Logika", "Penalaran", "Umum"]
+      "description": "Main category of question (TWK, TIU, TKP, Non Tag)",
+      "enum": ["TWK", "TIU", "TKP", "Non Tag"]
+    },
+    "sub_category": {
+      "type": "string",
+      "description": "Sub category/material (free text like figural, hitung cepat, etc.)"
     }
   }
 }
