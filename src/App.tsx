@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { User } from "@/entities";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -27,8 +26,11 @@ const App = () => {
 
   const checkAuth = async () => {
     try {
-      const currentUser = await User.me();
-      setUser(currentUser);
+      // Check localStorage for current user (demo authentication)
+      const storedUser = localStorage.getItem('currentUser');
+      if (storedUser) {
+        setUser(JSON.parse(storedUser));
+      }
     } catch (error) {
       console.log("No authenticated user");
     } finally {

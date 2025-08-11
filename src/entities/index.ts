@@ -6,4 +6,4 @@ export const Question = superdevClient.entity("Question");
 export const QuestionPackage = superdevClient.entity("QuestionPackage");
 export const TryoutSession = superdevClient.entity("TryoutSession");
 export const UserAnswer = superdevClient.entity("UserAnswer");
-export const User = superdevClient.auth;
+export const User = superdevClient.entity("User");

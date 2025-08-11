@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Clock, BookOpen, Trophy, Settings, LogOut, History } from "lucide-react";
-import { QuestionPackage, User, TryoutSession } from "@/entities";
+import { QuestionPackage, TryoutSession } from "@/entities";
 import { toast } from "@/hooks/use-toast";
 
 const Dashboard = () => {
@@ -20,8 +20,11 @@ const Dashboard = () => {
 
   const loadData = async () => {
     try {
-      const [currentUser, packageList, sessions] = await Promise.all([
-        User.me(),
+      // Get current user from localStorage
+      const storedUser = localStorage.getItem('currentUser');
+      const currentUser = storedUser ? JSON.parse(storedUser) : null;
+      
+      const [packageList, sessions] = await Promise.all([
         QuestionPackage.filter({ is_active: true }, '-created_at', 10),
         TryoutSession.filter({}, '-created_at', 5)
       ]);
@@ -38,7 +41,11 @@ const Dashboard = () => {
 
   const handleLogout = async () => {
     try {
-      await User.logout();
+      localStorage.removeItem('currentUser');
+      toast({
+        title: "Logout berhasil",
+        description: "Anda telah keluar dari sistem",
+      });
       navigate("/");
     } catch (error) {
       toast({

@@ -18,16 +18,36 @@ const Login = () => {
     setLoading(true);
 
     try {
-      await User.login();
+      // Find user by email
+      const users = await User.filter({ email: email });
+      
+      if (users.length === 0) {
+        throw new Error("User not found");
+      }
+
+      const user = users[0];
+      
+      // In a real app, you would verify password here
+      // For demo purposes, we'll accept any password
+      
+      // Store user info in localStorage to simulate login
+      localStorage.setItem('currentUser', JSON.stringify(user));
+      
       toast({
         title: "Login berhasil",
-        description: "Selamat datang di SKD CPNS Tryout",
+        description: `Selamat datang, ${user.full_name}!`,
       });
-      navigate("/dashboard");
+      
+      // Redirect based on user role
+      if (user.is_admin) {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error) {
       toast({
         title: "Login gagal",
-        description: "Email atau password salah",
+        description: "Email tidak ditemukan atau password salah",
         variant: "destructive",
       });
     } finally {
@@ -76,6 +96,9 @@ const Login = () => {
               <Link to="/register" className="text-blue-600 hover:underline">
                 Daftar di sini
               </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Demo: Gunakan email yang sudah terdaftar dan password apa saja
             </p>
           </div>
         </CardContent>

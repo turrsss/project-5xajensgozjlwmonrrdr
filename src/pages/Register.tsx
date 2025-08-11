@@ -40,19 +40,24 @@ const Register = () => {
     setLoading(true);
 
     try {
-      // In a real implementation, you would handle registration through Supabase
-      // For now, we'll simulate the registration process
-      await User.login(); // This would be replaced with actual registration
+      // Create user record with extended fields
+      await User.create({
+        full_name: formData.full_name,
+        email: formData.email,
+        phone: formData.phone,
+        is_admin: formData.email === 'admin@skdcpns.com', // Make admin@skdcpns.com an admin
+        subscription_status: 'inactive'
+      });
       
       toast({
         title: "Registrasi berhasil",
-        description: "Akun Anda telah dibuat. Selamat datang!",
+        description: "Akun Anda telah dibuat. Silakan login untuk melanjutkan.",
       });
-      navigate("/dashboard");
+      navigate("/login");
     } catch (error) {
       toast({
         title: "Registrasi gagal",
-        description: "Terjadi kesalahan saat membuat akun",
+        description: "Terjadi kesalahan saat membuat akun. Email mungkin sudah terdaftar.",
         variant: "destructive",
       });
     } finally {
@@ -87,7 +92,7 @@ const Register = () => {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="Masukkan email"
+                placeholder="Masukkan email (gunakan admin@skdcpns.com untuk akses admin)"
                 value={formData.email}
                 onChange={handleChange}
                 required
@@ -139,6 +144,9 @@ const Register = () => {
               <Link to="/login" className="text-blue-600 hover:underline">
                 Masuk di sini
               </Link>
+            </p>
+            <p className="text-xs text-gray-500 mt-2">
+              Tip: Gunakan email admin@skdcpns.com untuk akses admin
             </p>
           </div>
         </CardContent>
