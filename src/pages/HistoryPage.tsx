@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeft, Trophy, Clock, Target, TrendingUp } from "lucide-react";
-import { TryoutSession, QuestionPackage, UserAnswer } from "@/entities";
+import { TryoutSession, QuestionPackage } from "@/entities";
+import TagStatsView from "@/components/TagStatsView";
 
 const HistoryPage = () => {
   const [sessions, setSessions] = useState([]);
   const [packages, setPackages] = useState({});
   const [selectedSession, setSelectedSession] = useState(null);
-  const [sessionDetails, setSessionDetails] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,7 +20,8 @@ const HistoryPage = () => {
 
   const loadHistory = async () => {
     try {
-      const sessionList = await TryoutSession.list('-created_at', 50);
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      const sessionList = await TryoutSession.filter({ user_id: currentUser.id }, '-created_at', 50);
       setSessions(sessionList);
       
       // Load package data for each session
@@ -44,29 +45,10 @@ const HistoryPage = () => {
     }
   };
 
-  const loadSessionDetails = async (session) => {
-    try {
-      const answers = await UserAnswer.filter({ session_id: session.id });
-      setSessionDetails({
-        session,
-        answers,
-        package: packages[session.package_id]
-      });
-    } catch (error) {
-      console.error("Error loading session details:", error);
-    }
-  };
-
   const getScoreColor = (score) => {
     if (score >= 80) return "text-green-600";
     if (score >= 60) return "text-yellow-600";
     return "text-red-600";
-  };
-
-  const getScoreBadgeVariant = (score) => {
-    if (score >= 80) return "default";
-    if (score >= 60) return "secondary";
-    return "destructive";
   };
 
   const calculateStats = () => {
@@ -149,10 +131,7 @@ const HistoryPage = () => {
                       className={`cursor-pointer transition-shadow hover:shadow-lg ${
                         selectedSession?.id === session.id ? 'ring-2 ring-blue-500' : ''
                       }`}
-                      onClick={() => {
-                        setSelectedSession(session);
-                        loadSessionDetails(session);
-                      }}
+                      onClick={() => setSelectedSession(session)}
                     >
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start mb-2">
@@ -212,71 +191,78 @@ const HistoryPage = () => {
                       </CardContent>
                     </Card>
                   ) : (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>
-                          {packages[selectedSession.package_id]?.title || 'Paket Tidak Diketahui'}
-                        </CardTitle>
-                        <CardDescription>
-                          {new Date(selectedSession.created_at).toLocaleDateString('id-ID', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        {selectedSession.status === 'completed' ? (
-                          <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                                <div className={`text-2xl font-bold ${getScoreColor(selectedSession.total_score)}`}>
-                                  {selectedSession.total_score}
+                    <div className="space-y-6">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>
+                            {packages[selectedSession.package_id]?.title || 'Paket Tidak Diketahui'}
+                          </CardTitle>
+                          <CardDescription>
+                            {new Date(selectedSession.created_at).toLocaleDateString('id-ID', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          {selectedSession.status === 'completed' ? (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="text-center p-4 bg-blue-50 rounded-lg">
+                                  <div className={`text-2xl font-bold ${getScoreColor(selectedSession.total_score)}`}>
+                                    {selectedSession.total_score}
+                                  </div>
+                                  <div className="text-sm text-gray-600">Skor Total</div>
                                 </div>
-                                <div className="text-sm text-gray-600">Skor Total</div>
-                              </div>
-                              <div className="text-center p-4 bg-green-50 rounded-lg">
-                                <div className="text-2xl font-bold text-green-600">
-                                  {selectedSession.correct_answers}
+                                <div className="text-center p-4 bg-green-50 rounded-lg">
+                                  <div className="text-2xl font-bold text-green-600">
+                                    {selectedSession.correct_answers}
+                                  </div>
+                                  <div className="text-sm text-gray-600">Jawaban Benar</div>
                                 </div>
-                                <div className="text-sm text-gray-600">Jawaban Benar</div>
                               </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="text-center p-4 bg-red-50 rounded-lg">
-                                <div className="text-2xl font-bold text-red-600">
-                                  {selectedSession.wrong_answers}
+                              
+                              <div className="grid grid-cols-2 gap-4">
+                                <div className="text-center p-4 bg-red-50 rounded-lg">
+                                  <div className="text-2xl font-bold text-red-600">
+                                    {selectedSession.wrong_answers}
+                                  </div>
+                                  <div className="text-sm text-gray-600">Jawaban Salah</div>
                                 </div>
-                                <div className="text-sm text-gray-600">Jawaban Salah</div>
-                              </div>
-                              <div className="text-center p-4 bg-gray-50 rounded-lg">
-                                <div className="text-2xl font-bold text-gray-600">
-                                  {selectedSession.unanswered}
+                                <div className="text-center p-4 bg-gray-50 rounded-lg">
+                                  <div className="text-2xl font-bold text-gray-600">
+                                    {selectedSession.unanswered}
+                                  </div>
+                                  <div className="text-sm text-gray-600">Tidak Dijawab</div>
                                 </div>
-                                <div className="text-sm text-gray-600">Tidak Dijawab</div>
                               </div>
-                            </div>
 
-                            {selectedSession.start_time && selectedSession.end_time && (
-                              <div className="text-center p-4 bg-yellow-50 rounded-lg">
-                                <div className="text-lg font-bold text-yellow-600">
-                                  {Math.round((new Date(selectedSession.end_time) - new Date(selectedSession.start_time)) / (1000 * 60))} menit
+                              {selectedSession.start_time && selectedSession.end_time && (
+                                <div className="text-center p-4 bg-yellow-50 rounded-lg">
+                                  <div className="text-lg font-bold text-yellow-600">
+                                    {Math.round((new Date(selectedSession.end_time) - new Date(selectedSession.start_time)) / (1000 * 60))} menit
+                                  </div>
+                                  <div className="text-sm text-gray-600">Waktu Pengerjaan</div>
                                 </div>
-                                <div className="text-sm text-gray-600">Waktu Pengerjaan</div>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="text-center p-8">
-                            <Badge variant="secondary" className="mb-2">Tryout Berlangsung</Badge>
-                            <p className="text-gray-600">Tryout masih dalam proses pengerjaan</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="text-center p-8">
+                              <Badge variant="secondary" className="mb-2">Tryout Berlangsung</Badge>
+                              <p className="text-gray-600">Tryout masih dalam proses pengerjaan</p>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
+
+                      {/* Tag Statistics */}
+                      {selectedSession.status === 'completed' && (
+                        <TagStatsView sessionId={selectedSession.id} />
+                      )}
+                    </div>
                   )}
                 </div>
               </div>

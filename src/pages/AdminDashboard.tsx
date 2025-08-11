@@ -2,13 +2,15 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Edit, Trash2, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Edit, Trash2, ArrowLeft, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { QuestionPackage, Question, PaymentSetting } from "@/entities";
 import { toast } from "@/hooks/use-toast";
 import PackageForm from "@/components/PackageForm";
 import QuestionForm from "@/components/QuestionForm";
 import PaymentSettings from "@/components/PaymentSettings";
+import PackageStats from "@/components/PackageStats";
 
 const AdminDashboard = () => {
   const [packages, setPackages] = useState([]);
@@ -132,6 +134,7 @@ const AdminDashboard = () => {
           <TabsList>
             <TabsTrigger value="packages">Paket Soal</TabsTrigger>
             <TabsTrigger value="questions">Kelola Soal</TabsTrigger>
+            <TabsTrigger value="statistics">Statistik Paket</TabsTrigger>
             <TabsTrigger value="payments">Pengaturan Pembayaran</TabsTrigger>
           </TabsList>
 
@@ -168,7 +171,7 @@ const AdminDashboard = () => {
                         </span>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
                       <Button 
                         size="sm" 
                         variant="outline"
@@ -234,9 +237,16 @@ const AdminDashboard = () => {
                       <CardContent className="p-4">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <h3 className="font-medium mb-2">
-                              {index + 1}. {question.question_text}
-                            </h3>
+                            <div className="flex items-center space-x-2 mb-2">
+                              <h3 className="font-medium">
+                                {index + 1}. {question.question_text}
+                              </h3>
+                              {question.question_tag && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {question.question_tag}
+                                </Badge>
+                              )}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-gray-600">
                               <div>A. {question.option_a}</div>
                               <div>B. {question.option_b}</div>
@@ -273,6 +283,43 @@ const AdminDashboard = () => {
                   ))}
                 </div>
               </>
+            )}
+          </TabsContent>
+
+          <TabsContent value="statistics" className="space-y-6">
+            {!selectedPackage ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-gray-600 mb-4">Pilih paket soal untuk melihat statistik</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {packages.map((pkg) => (
+                      <Card key={pkg.id} className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => setSelectedPackage(pkg)}>
+                        <CardContent className="p-4 text-center">
+                          <BarChart3 className="w-8 h-8 mx-auto mb-2 text-blue-600" />
+                          <h3 className="font-medium">{pkg.title}</h3>
+                          <p className="text-sm text-gray-600">{pkg.total_questions} soal</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div>
+                <div className="flex justify-between items-center mb-6">
+                  <Button 
+                    variant="outline"
+                    onClick={() => setSelectedPackage(null)}
+                  >
+                    <ArrowLeft className="w-4 h-4 mr-2" />
+                    Pilih Paket Lain
+                  </Button>
+                </div>
+                <PackageStats 
+                  packageId={selectedPackage.id} 
+                  packageTitle={selectedPackage.title}
+                />
+              </div>
             )}
           </TabsContent>
 

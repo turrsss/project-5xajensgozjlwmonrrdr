@@ -42,6 +42,11 @@
     "question_number": {
       "type": "number",
       "description": "Question order number in package"
+    },
+    "question_tag": {
+      "type": "string",
+      "description": "Tag for question type (e.g., Figural, Verbal, Numerik, etc.)",
+      "enum": ["Figural", "Verbal", "Numerik", "Logika", "Penalaran", "Umum"]
     }
   }
 }

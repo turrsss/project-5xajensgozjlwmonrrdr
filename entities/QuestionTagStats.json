@@ -1,0 +1,46 @@
+{
+  "name": "QuestionTagStats",
+  "description": "Statistics for question tags per user session",
+  "properties": {
+    "session_id": {
+      "type": "string",
+      "description": "ID of the tryout session"
+    },
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user"
+    },
+    "package_id": {
+      "type": "string",
+      "description": "ID of the question package"
+    },
+    "question_tag": {
+      "type": "string",
+      "description": "Question tag (Figural, Verbal, etc.)"
+    },
+    "total_questions": {
+      "type": "number",
+      "description": "Total questions for this tag in the session"
+    },
+    "correct_answers": {
+      "type": "number",
+      "description": "Number of correct answers for this tag"
+    },
+    "wrong_answers": {
+      "type": "number",
+      "description": "Number of wrong answers for this tag"
+    },
+    "unanswered": {
+      "type": "number",
+      "description": "Number of unanswered questions for this tag"
+    },
+    "total_time_seconds": {
+      "type": "number",
+      "description": "Total time spent on questions of this tag"
+    },
+    "average_time_seconds": {
+      "type": "number",
+      "description": "Average time per question for this tag"
+    }
+  }
+}

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Clock, ArrowLeft, ArrowRight, Flag } from "lucide-react";
-import { QuestionPackage, Question, TryoutSession, UserAnswer, User } from "@/entities";
+import { QuestionPackage, Question, TryoutSession, UserAnswer, QuestionTagStats } from "@/entities";
 import { toast } from "@/hooks/use-toast";
 
 const TryoutPage = () => {
@@ -19,6 +19,7 @@ const TryoutPage = () => {
   const [timeLeft, setTimeLeft] = useState(0);
   const [loading, setLoading] = useState(true);
   const [questionStartTime, setQuestionStartTime] = useState(Date.now());
+  const [questionTimes, setQuestionTimes] = useState({});
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -67,7 +68,9 @@ const TryoutPage = () => {
       setQuestions(questionList);
       
       // Create new session
+      const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
       const newSession = await TryoutSession.create({
+        user_id: currentUser.id,
         package_id: packageId,
         start_time: new Date().toISOString(),
         status: 'in_progress'
@@ -96,6 +99,12 @@ const TryoutPage = () => {
     setAnswers(prev => ({
       ...prev,
       [currentQuestion.id]: answer
+    }));
+
+    // Store time spent on this question
+    setQuestionTimes(prev => ({
+      ...prev,
+      [currentQuestion.id]: timeSpent
     }));
 
     // Save answer to database
@@ -135,6 +144,65 @@ const TryoutPage = () => {
     }
   };
 
+  const calculateTagStats = async (userAnswers) => {
+    const tagStats = {};
+    
+    // Group questions by tag
+    questions.forEach(question => {
+      const tag = question.question_tag || 'Umum';
+      if (!tagStats[tag]) {
+        tagStats[tag] = {
+          total_questions: 0,
+          correct_answers: 0,
+          wrong_answers: 0,
+          unanswered: 0,
+          total_time_seconds: 0
+        };
+      }
+      tagStats[tag].total_questions++;
+    });
+
+    // Calculate stats for each tag
+    userAnswers.forEach(answer => {
+      const question = questions.find(q => q.id === answer.question_id);
+      if (question) {
+        const tag = question.question_tag || 'Umum';
+        
+        if (answer.is_correct) {
+          tagStats[tag].correct_answers++;
+        } else if (answer.user_answer) {
+          tagStats[tag].wrong_answers++;
+        } else {
+          tagStats[tag].unanswered++;
+        }
+        
+        tagStats[tag].total_time_seconds += answer.time_spent_seconds || 0;
+      }
+    });
+
+    // Save tag stats to database
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    
+    for (const [tag, stats] of Object.entries(tagStats)) {
+      try {
+        await QuestionTagStats.create({
+          session_id: session.id,
+          user_id: currentUser.id,
+          package_id: packageId,
+          question_tag: tag,
+          total_questions: stats.total_questions,
+          correct_answers: stats.correct_answers,
+          wrong_answers: stats.wrong_answers,
+          unanswered: stats.unanswered,
+          total_time_seconds: stats.total_time_seconds,
+          average_time_seconds: stats.total_questions > 0 ? Math.round(stats.total_time_seconds / stats.total_questions) : 0
+        });
+      } catch (error) {
+        console.error(`Error saving tag stats for ${tag}:`, error);
+      }
+    }
+  };
+
   const handleFinishTryout = async () => {
     if (!confirm("Apakah Anda yakin ingin menyelesaikan tryout?")) return;
     
@@ -145,6 +213,9 @@ const TryoutPage = () => {
       const wrongAnswers = userAnswers.filter(answer => !answer.is_correct && answer.user_answer).length;
       const unanswered = questions.length - userAnswers.length;
       const totalScore = Math.round((correctAnswers / questions.length) * 100);
+
+      // Calculate tag statistics
+      await calculateTagStats(userAnswers);
 
       // Update session
       await TryoutSession.update(session.id, {
@@ -236,6 +307,11 @@ const TryoutPage = () => {
               <Badge variant="secondary">
                 Soal {currentQuestionIndex + 1} dari {questions.length}
               </Badge>
+              {currentQuestion.question_tag && (
+                <Badge variant="outline">
+                  {currentQuestion.question_tag}
+                </Badge>
+              )}
             </div>
             
             <div className="flex items-center space-x-4">
@@ -273,16 +349,17 @@ const TryoutPage = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-5 gap-2">
-                  {questions.map((_, index) => (
+                  {questions.map((question, index) => (
                     <Button
                       key={index}
                       size="sm"
                       variant={
                         index === currentQuestionIndex ? "default" :
-                        answers[questions[index]?.id] ? "secondary" : "outline"
+                        answers[question.id] ? "secondary" : "outline"
                       }
                       className="w-8 h-8 p-0"
                       onClick={() => setCurrentQuestionIndex(index)}
+                      title={question.question_tag || 'Umum'}
                     >
                       {index + 1}
                     </Button>
@@ -296,8 +373,13 @@ const TryoutPage = () => {
           <div className="lg:col-span-3">
             <Card>
               <CardHeader>
-                <CardTitle className="text-lg">
-                  Soal {currentQuestionIndex + 1}
+                <CardTitle className="text-lg flex items-center justify-between">
+                  <span>Soal {currentQuestionIndex + 1}</span>
+                  {currentQuestion.question_tag && (
+                    <Badge variant="secondary">
+                      {currentQuestion.question_tag}
+                    </Badge>
+                  )}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">

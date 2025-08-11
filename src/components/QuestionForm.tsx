@@ -19,8 +19,11 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
     correct_answer: "",
     explanation: "",
     question_number: questionNumber,
+    question_tag: "",
   });
   const [loading, setLoading] = useState(false);
+
+  const questionTags = ["Figural", "Verbal", "Numerik", "Logika", "Penalaran", "Umum"];
 
   useEffect(() => {
     if (editQuestion) {
@@ -34,6 +37,7 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
         correct_answer: editQuestion.correct_answer || "",
         explanation: editQuestion.explanation || "",
         question_number: editQuestion.question_number || questionNumber,
+        question_tag: editQuestion.question_tag || "",
       });
     }
   }, [editQuestion, questionNumber]);
@@ -46,10 +50,10 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
     }));
   };
 
-  const handleSelectChange = (value) => {
+  const handleSelectChange = (name, value) => {
     setFormData(prev => ({
       ...prev,
-      correct_answer: value
+      [name]: value
     }));
   };
 
@@ -109,6 +113,20 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
               rows={3}
               required
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Tag Jenis Soal</Label>
+            <Select value={formData.question_tag} onValueChange={(value) => handleSelectChange('question_tag', value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Pilih jenis soal" />
+              </SelectTrigger>
+              <SelectContent>
+                {questionTags.map((tag) => (
+                  <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="grid grid-cols-1 gap-4">
@@ -175,7 +193,7 @@ const QuestionForm = ({ packageId, question: editQuestion, questionNumber, onClo
 
           <div className="space-y-2">
             <Label>Jawaban Benar</Label>
-            <Select value={formData.correct_answer} onValueChange={handleSelectChange}>
+            <Select value={formData.correct_answer} onValueChange={(value) => handleSelectChange('correct_answer', value)}>
               <SelectTrigger>
                 <SelectValue placeholder="Pilih jawaban yang benar" />
               </SelectTrigger>
