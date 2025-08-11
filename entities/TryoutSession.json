@@ -1,0 +1,48 @@
+{
+  "name": "TryoutSession",
+  "description": "User's tryout sessions",
+  "properties": {
+    "user_id": {
+      "type": "string",
+      "description": "ID of the user taking the tryout"
+    },
+    "package_id": {
+      "type": "string",
+      "description": "ID of the question package"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "When the tryout started"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "When the tryout ended"
+    },
+    "status": {
+      "type": "string",
+      "description": "Session status",
+      "enum": ["in_progress", "completed", "expired"],
+      "default": "in_progress"
+    },
+    "total_score": {
+      "type": "number",
+      "description": "Total score achieved",
+      "default": 0
+    },
+    "correct_answers": {
+      "type": "number",
+      "description": "Number of correct answers",
+      "default": 0
+    },
+    "wrong_answers": {
+      "type": "number",
+      "description": "Number of wrong answers",
+      "default": 0
+    },
+    "unanswered": {
+      "type": "number",
+      "description": "Number of unanswered questions",
+      "default": 0
+    }
+  }
+}

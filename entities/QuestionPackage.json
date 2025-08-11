@@ -1,0 +1,38 @@
+{
+  "name": "QuestionPackage",
+  "description": "SKD question packages that can be configured by admin",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Package title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Package description"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "description": "Duration in minutes (default 110)",
+      "default": 110
+    },
+    "price": {
+      "type": "number",
+      "description": "Price for accessing this package"
+    },
+    "is_active": {
+      "type": "boolean",
+      "description": "Whether package is active",
+      "default": true
+    },
+    "requires_payment": {
+      "type": "boolean",
+      "description": "Whether package requires payment",
+      "default": true
+    },
+    "total_questions": {
+      "type": "number",
+      "description": "Total number of questions in package",
+      "default": 0
+    }
+  }
+}
